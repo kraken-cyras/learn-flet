@@ -2,8 +2,9 @@ name: Build Android APK
 
 on:
   push:
-    branches: [main]
-  workflow_dispatch:
+    branches: ["*"]     # Trigger on push to any branch
+    tags: ["*"]         # Trigger on push of any tag
+  workflow_dispatch:     # Allow manual trigger
 
 jobs:
   build-android:
@@ -16,33 +17,40 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0   # Fetch full history for caching & Buildozer
+
+      # -----------------------
+      # DEBUG INFO
+      # -----------------------
+      - name: Show Git Info
+        run: |
+          echo "Branch: $GITHUB_REF"
+          git log -1
+          pwd
+          ls -la
 
       # -----------------------
       # INSTALL SYSTEM DEPENDENCIES
-      # (required for Buildozer + Flet mobile)
-      # -----------------------
+      # -----------------------s
       - name: Install Build Dependencies
         run: |
           sudo apt update
           sudo apt install -y \
             python3-pip python3-setuptools git zip unzip \
             openjdk-17-jdk adb autoconf automake \
-            libtool pkg-config zlib1g-dev libncurses5 \
-            libncurses5-dev libtinfo5 libffi-dev \
-            libssl-dev ccache
+            libtool pkg-config zlib1g-dev libncurses-dev \
+            libffi-dev libssl-dev ccache
+            # -----------------------
+            # Install Buildozer & Python deps
+            # -----------------------
+            - name: Install Python Dependencies
+              run: |
+                python3 -m pip install --upgrade pip setuptools wheel
+                pip install buildozer cython
+                if [ -f requirements-build.txt ]; then pip install -r requirements-build.txt; fi
 
       # -----------------------
-      # Install Buildozer, Cython, Flet dependencies
-      # -----------------------
-      - name: Install Python Dependencies
-        run: |
-          python3 -m pip install --upgrade pip setuptools wheel
-          pip install buildozer cython
-          pip install -r requirements-build.txt
-
-      # -----------------------
-      # ENABLE CACHING (SUPER FAST BUILDS)
+      # ENABLE CACHING
       # -----------------------
       - name: Cache .buildozer
         uses: actions/cache@v3
@@ -56,7 +64,7 @@ jobs:
       # -----------------------
       - name: Build APK using Buildozer
         run: |
-          buildozer android debug
+          buildozer android debug || tail -n 50 .buildozer/android/platform/build/logs/buildozer.log
 
       # -----------------------
       # FIND AND UPLOAD THE APK
@@ -67,4 +75,3 @@ jobs:
           name: clc-kenya-android-apk
           path: bin/*.apk
           retention-days: 14
-
