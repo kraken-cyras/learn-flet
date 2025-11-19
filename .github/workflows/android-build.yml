@@ -12,28 +12,12 @@ jobs:
   build-android:
     runs-on: ubuntu-latest
 
-    env:
-      ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
-      PATH: ${{ github.workspace }}/android-sdk/cmdline-tools/latest/bin:${{ github.workspace }}/android-sdk/platform-tools:${{ env.PATH }}
-
     steps:
       # -----------------------
       # CHECKOUT PROJECT
       # -----------------------
       - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      # -----------------------
-      # DEBUG INFO
-      # -----------------------
-      - name: Show Git Info
-        run: |
-          echo "Branch/Tag: $GITHUB_REF"
-          git log -1
-          pwd
-          ls -la
 
       # -----------------------
       # INSTALL SYSTEM DEPENDENCIES
@@ -52,11 +36,13 @@ jobs:
       # -----------------------
       - name: Install Android SDK & NDK
         run: |
+          ANDROID_SDK_ROOT=$GITHUB_WORKSPACE/android-sdk
           mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
           cd $ANDROID_SDK_ROOT/cmdline-tools
           wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
           unzip cmdline-tools.zip -d latest
           rm cmdline-tools.zip
+          export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH
           yes | sdkmanager --licenses
           sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653"
 
@@ -71,26 +57,12 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
       # -----------------------
-      # VERIFY FLET VERSION
-      # -----------------------
-      - name: Check Flet Version
-        run: flet --version
-
-      # -----------------------
-      # ENABLE BUILDOZER CACHING
-      # -----------------------
-      - name: Cache Buildozer
-        uses: actions/cache@v3
-        id: buildozer-cache
-        with:
-          path: .buildozer
-          key: buildozer-${{ hashFiles('buildozer.spec') }}
-
-      # -----------------------
       # BUILD APK USING FLET
       # -----------------------
       - name: Build APK using Flet
         run: |
+          export ANDROID_SDK_ROOT=$GITHUB_WORKSPACE/android-sdk
+          export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH
           flet build apk \
             --verbose \
             --build-name "1.0.0" \
@@ -104,7 +76,6 @@ jobs:
       # -----------------------
       - name: Verify APK
         run: |
-          echo "🔍 Checking for APK files..."
           APK_FILE=$(find build/apk -name "*.apk" -type f | head -1)
           if [ -z "$APK_FILE" ]; then
             echo "❌ No APK file found!"
@@ -124,19 +95,3 @@ jobs:
           name: clc-kenya-android-apk
           path: build/apk/*.apk
           retention-days: 14
-
-      # -----------------------
-      # CREATE GITHUB RELEASE (optional)
-      # -----------------------
-      - name: Create GitHub Release
-        if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v1
-        with:
-          files: build/apk/*.apk
-          body: |
-            CLC Kenya Android App
-
-            **Build Information:**
-            - Version: 1.0.0
-            - Build: ${{ github.run_number }}
-            - Commit: ${{ github.sha }}
