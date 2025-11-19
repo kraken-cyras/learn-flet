@@ -36,26 +36,31 @@ jobs:
       # -----------------------
       # INSTALL ANDROID SDK & NDK
       # -----------------------
-      - name: Install Android SDK & NDK
+      - name: Install Android SDK
         run: |
           export ANDROID_SDK_ROOT=$HOME/android-sdk
           mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
 
-          cd $ANDROID_SDK_ROOT/cmdline-tools
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O sdk.zip
-          unzip -qq sdk.zip -d latest
-          rm sdk.zip
+          echo "📥 Downloading Android commandline-tools..."
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O tools.zip
+
+          echo "📦 Extracting..."
+          unzip -q tools.zip
+          rm tools.zip
+
+          # ⚠️ Correct folder structure expected by sdkmanager
+          mv cmdline-tools $ANDROID_SDK_ROOT/cmdline-tools/latest
 
           export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH
 
+          echo "📜 Accepting licenses..."
           yes | sdkmanager --licenses
+
+          echo "⬇ Installing required SDK packages..."
           sdkmanager "platform-tools" \
-                     "platforms;android-33" \
-                     "build-tools;33.0.2" \
-                     "ndk;25.2.9519653"
-          
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-          echo "PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH" >> $GITHUB_ENV
+                    "platforms;android-33" \
+                    "build-tools;33.0.2" \
+                    "ndk;25.2.9519653"
 
       # -----------------------
       # PYTHON DEPENDENCIES
