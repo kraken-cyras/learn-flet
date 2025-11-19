@@ -22,7 +22,7 @@ jobs:
           fetch-depth: 0   # Full history for caching & Buildozer
 
       # -----------------------
-      # SHOW DEBUG INFO
+      # DEBUG INFO
       # -----------------------
       - name: Show Git Info
         run: |
@@ -49,9 +49,15 @@ jobs:
       - name: Install Python Dependencies
         run: |
           python3 -m pip install --upgrade pip setuptools wheel
-          pip install --upgrade flet
+          pip install --upgrade flet           # <-- Ensures latest Flet CLI
           pip install buildozer cython
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      # -----------------------
+      # VERIFY FLET VERSION
+      # -----------------------
+      - name: Check Flet Version
+        run: flet --version
 
       # -----------------------
       # ENABLE BUILDOZER CACHING
