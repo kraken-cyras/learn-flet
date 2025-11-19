@@ -1,39 +1,77 @@
-name: Build Flet Android APK
+name: Build Android APK
 
 on:
   push:
-    branches: [main]
-  release:
-    types: [published]
+    branches: ["*"]     # Trigger on push to any branch
+    tags: ["*"]         # Trigger on push of any tag
+  workflow_dispatch:     # Allow manual trigger
 
 jobs:
   build-android:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      # -----------------------
+      # CHECKOUT PROJECT
+      # -----------------------
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Fetch full history for caching & Buildozer
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
-        cache: 'pip'
+      # -----------------------
+      # DEBUG INFO
+      # -----------------------
+      - name: Show Git Info
+        run: |
+          echo "Branch: $GITHUB_REF"
+          git log -1
+          pwd
+          ls -la
 
-    - name: Install dependencies
-      run: pip install flet requests pillow appwrite
+      # -----------------------
+      # INSTALL SYSTEM DEPENDENCIES
+      # -----------------------s
+      - name: Install Build Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            python3-pip python3-setuptools git zip unzip \
+            openjdk-17-jdk adb autoconf automake \
+            libtool pkg-config zlib1g-dev libncurses-dev \
+            libffi-dev libssl-dev ccache
+            # -----------------------
+            # Install Buildozer & Python deps
+            # -----------------------
+            - name: Install Python Dependencies
+              run: |
+                python3 -m pip install --upgrade pip setuptools wheel
+                pip install buildozer cython
+                if [ -f requirements-build.txt ]; then pip install -r requirements-build.txt; fi
 
-    - name: Build APK
-      run: |
-        flet build apk \
-          --verbose \
-          --build-name "1.0.0" \
-          --build-number 1 \
-          --include-packages appwrite,requests,PIL
+      # -----------------------
+      # ENABLE CACHING
+      # -----------------------
+      - name: Cache .buildozer
+        uses: actions/cache@v3
+        id: buildozer-cache
+        with:
+          path: .buildozer
+          key: buildozer-${{ hashFiles('buildozer.spec') }}
 
-    - name: Upload APK artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: CLC-Kenya-App
-        path: build/apk/*.apk
-        retention-days: 30
+      # -----------------------
+      # BUILD APK
+      # -----------------------
+      - name: Build APK using Buildozer
+        run: |
+          buildozer android debug || tail -n 50 .buildozer/android/platform/build/logs/buildozer.log
+
+      # -----------------------
+      # FIND AND UPLOAD THE APK
+      # -----------------------
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: clc-kenya-android-apk
+          path: bin/*.apk
+          retention-days: 14
