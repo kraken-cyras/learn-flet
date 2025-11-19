@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
       # -----------------------
       # CHECKOUT PROJECT
       # -----------------------
@@ -24,74 +25,78 @@ jobs:
       # -----------------------
       - name: Install Build Dependencies
         run: |
-          sudo apt-get update -qqy
-          sudo apt-get install -qqy --no-install-recommends \
-            python3-pip python3-setuptools git zip unzip \
-            openjdk-17-jdk adb autoconf automake \
-            libtool pkg-config zlib1g-dev libncurses-dev \
-            libffi-dev libssl-dev ccache curl unzip wget
+          sudo apt update -qq
+          sudo apt install -qqy --no-install-recommends \
+            python3-pip python3-setuptools python3-venv \
+            git zip unzip ccache openjdk-17-jdk \
+            autoconf automake libtool pkg-config \
+            zlib1g-dev libncurses-dev libffi-dev libssl-dev \
+            wget curl
 
       # -----------------------
-      # INSTALL ANDROID SDK/NDK
+      # INSTALL ANDROID SDK & NDK
       # -----------------------
       - name: Install Android SDK & NDK
         run: |
-          ANDROID_SDK_ROOT=$GITHUB_WORKSPACE/android-sdk
+          export ANDROID_SDK_ROOT=$HOME/android-sdk
           mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
+
           cd $ANDROID_SDK_ROOT/cmdline-tools
-          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
-          unzip cmdline-tools.zip -d latest
-          rm cmdline-tools.zip
-          export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O sdk.zip
+          unzip -qq sdk.zip -d latest
+          rm sdk.zip
+
+          export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH
+
           yes | sdkmanager --licenses
-          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653"
+          sdkmanager "platform-tools" \
+                     "platforms;android-33" \
+                     "build-tools;33.0.2" \
+                     "ndk;25.2.9519653"
+          
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          echo "PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH" >> $GITHUB_ENV
 
       # -----------------------
-      # INSTALL PYTHON DEPENDENCIES
+      # PYTHON DEPENDENCIES
       # -----------------------
       - name: Install Python Dependencies
         run: |
-          python3 -m pip install --upgrade pip setuptools wheel
-          pip install --upgrade flet
+          pip install --upgrade pip wheel setuptools
+          pip install flet
           pip install buildozer cython
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
       # -----------------------
-      # BUILD APK USING FLET
+      # BUILD APK via Flet Pack
       # -----------------------
       - name: Build APK using Flet
+        env:
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
         run: |
-          export ANDROID_SDK_ROOT=$GITHUB_WORKSPACE/android-sdk
-          export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH
-          flet build apk \
-            --verbose \
-            --build-name "1.0.0" \
-            --build-number ${{ github.run_number }} \
-            --include-packages "appwrite,requests,PIL" \
-            --dart-define "APP_NAME=CLC Kenya" \
-            --dart-define "APP_VERSION=1.0.0"
+          echo "Using Android SDK: $ANDROID_SDK_ROOT"
+          flet pack android --verbose
 
       # -----------------------
-      # VERIFY APK FILE
+      # VERIFY APK
       # -----------------------
       - name: Verify APK
         run: |
-          APK_FILE=$(find build/apk -name "*.apk" -type f | head -1)
+          APK_FILE=$(find build -name "*.apk" | head -1)
           if [ -z "$APK_FILE" ]; then
-            echo "❌ No APK file found!"
+            echo "❌ No APK found!"
             find build -type f | head -20
             exit 1
           fi
           echo "✅ APK found: $APK_FILE"
           ls -lh "$APK_FILE"
-          file "$APK_FILE"
 
       # -----------------------
-      # UPLOAD APK ARTIFACT
+      # UPLOAD ARTIFACT
       # -----------------------
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: clc-kenya-android-apk
-          path: build/apk/*.apk
+          path: build/**/*.apk
           retention-days: 14
