@@ -3,7 +3,6 @@ name: Build Flet Android APK
 on:
   push:
     branches: ["main", "master"]
-    tags: ["*"]
   workflow_dispatch:
   release:
     types: [published]
@@ -13,95 +12,72 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
-      # -----------------------
-      # CHECKOUT PROJECT
-      # -----------------------
+      # -----------------------------------------
+      # CHECKOUT SOURCE
+      # -----------------------------------------
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # -----------------------
-      # INSTALL SYSTEM DEPENDENCIES
-      # -----------------------
-      - name: Install Build Dependencies
+      # -----------------------------------------
+      # INSTALL BUILD DEPENDENCIES FOR BUILDOZER
+      # -----------------------------------------
+      - name: Install System Dependencies
         run: |
-          sudo apt update -qq
-          sudo apt install -qqy --no-install-recommends \
+          sudo apt update
+          sudo apt install -y \
             python3-pip python3-setuptools python3-venv \
             git zip unzip ccache openjdk-17-jdk \
             autoconf automake libtool pkg-config \
-            zlib1g-dev libncurses-dev libffi-dev libssl-dev \
-            wget curl
+            zlib1g-dev libncurses5 libncurses5-dev libffi-dev libssl-dev \
+            libsqlite3-dev libjpeg-dev libfreetype6-dev
 
-      # -----------------------
-      # INSTALL ANDROID SDK & NDK
-      # -----------------------
-      - name: Install Android SDK
-        run: |
-          export ANDROID_SDK_ROOT=$HOME/android-sdk
-          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
-
-          echo "📥 Downloading Android commandline-tools..."
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O tools.zip
-
-          echo "📦 Extracting..."
-          unzip -q tools.zip
-          rm tools.zip
-
-          # ⚠️ Correct folder structure expected by sdkmanager
-          mv cmdline-tools $ANDROID_SDK_ROOT/cmdline-tools/latest
-
-          export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH
-
-          echo "📜 Accepting licenses..."
-          yes | sdkmanager --licenses
-
-          echo "⬇ Installing required SDK packages..."
-          sdkmanager "platform-tools" \
-                    "platforms;android-33" \
-                    "build-tools;33.0.2" \
-                    "ndk;25.2.9519653"
-
-      # -----------------------
+      # -----------------------------------------
       # PYTHON DEPENDENCIES
-      # -----------------------
+      # -----------------------------------------
       - name: Install Python Dependencies
         run: |
-          pip install --upgrade pip wheel setuptools
-          pip install flet
-          pip install buildozer cython
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          python3 -m pip install --upgrade pip wheel setuptools
+          pip install buildozer cython flet
+          if [ -f requirements-build.txt ]; then pip install -r requirements-build.txt; fi
 
-      # -----------------------
-      # BUILD APK via Flet Pack
-      # -----------------------
-      - name: Build APK using Flet
-        env:
-          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-        run: |
-          echo "Using Android SDK: $ANDROID_SDK_ROOT"
-          flet pack android --verbose
+      # -----------------------------------------
+      # CACHE BUILDOZER OUTPUT FOR FASTER BUILDS
+      # -----------------------------------------
+      - name: Cache Buildozer Directory
+        uses: actions/cache@v3
+        id: buildozer-cache
+        with:
+          path: .buildozer
+          key: buildozer-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            buildozer-
 
-      # -----------------------
-      # VERIFY APK
-      # -----------------------
-      - name: Verify APK
+      # -----------------------------------------
+      # BUILD APK VIA BUILDOZER (CORRECT METHOD)
+      # -----------------------------------------
+      - name: Build Debug APK
+        run: buildozer android debug
+
+      # -----------------------------------------
+      # FIND APK
+      # -----------------------------------------
+      - name: Locate APK
+        id: find_apk
         run: |
-          APK_FILE=$(find build -name "*.apk" | head -1)
+          APK_FILE=$(ls bin/*.apk | head -n 1 || true)
           if [ -z "$APK_FILE" ]; then
-            echo "❌ No APK found!"
-            find build -type f | head -20
+            echo "❌ No APK found in bin/"
             exit 1
           fi
-          echo "✅ APK found: $APK_FILE"
-          ls -lh "$APK_FILE"
+          echo "apk_path=$APK_FILE" >> $GITHUB_OUTPUT
+          echo "📦 Found APK: $APK_FILE"
 
-      # -----------------------
-      # UPLOAD ARTIFACT
-      # -----------------------
+      # -----------------------------------------
+      # UPLOAD APK ARTIFACT
+      # -----------------------------------------
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: clc-kenya-android-apk
-          path: build/**/*.apk
+          name: clc-kenya-flet-apk
+          path: ${{ steps.find_apk.outputs.apk_path }}
           retention-days: 14
