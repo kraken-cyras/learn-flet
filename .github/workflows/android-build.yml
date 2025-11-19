@@ -2,15 +2,19 @@ name: Build Flet Android APK
 
 on:
   push:
-    branches: ["main", "master"]   # Trigger on push to main/master
-    tags: ["*"]                     # Trigger on push of any tag
-  workflow_dispatch:               # Allow manual trigger
+    branches: ["main", "master"]
+    tags: ["*"]
+  workflow_dispatch:
   release:
-    types: [published]             # Trigger on published release
+    types: [published]
 
 jobs:
   build-android:
     runs-on: ubuntu-latest
+
+    env:
+      ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
+      PATH: ${{ github.workspace }}/android-sdk/cmdline-tools/latest/bin:${{ github.workspace }}/android-sdk/platform-tools:${{ env.PATH }}
 
     steps:
       # -----------------------
@@ -19,7 +23,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # Full history for caching & Buildozer
+          fetch-depth: 0
 
       # -----------------------
       # DEBUG INFO
@@ -41,7 +45,20 @@ jobs:
             python3-pip python3-setuptools git zip unzip \
             openjdk-17-jdk adb autoconf automake \
             libtool pkg-config zlib1g-dev libncurses-dev \
-            libffi-dev libssl-dev ccache
+            libffi-dev libssl-dev ccache curl unzip wget
+
+      # -----------------------
+      # INSTALL ANDROID SDK/NDK
+      # -----------------------
+      - name: Install Android SDK & NDK
+        run: |
+          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
+          cd $ANDROID_SDK_ROOT/cmdline-tools
+          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
+          unzip cmdline-tools.zip -d latest
+          rm cmdline-tools.zip
+          yes | sdkmanager --licenses
+          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;25.2.9519653"
 
       # -----------------------
       # INSTALL PYTHON DEPENDENCIES
@@ -49,7 +66,7 @@ jobs:
       - name: Install Python Dependencies
         run: |
           python3 -m pip install --upgrade pip setuptools wheel
-          pip install --upgrade flet           # <-- Ensures latest Flet CLI
+          pip install --upgrade flet
           pip install buildozer cython
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
@@ -91,7 +108,6 @@ jobs:
           APK_FILE=$(find build/apk -name "*.apk" -type f | head -1)
           if [ -z "$APK_FILE" ]; then
             echo "❌ No APK file found!"
-            echo "Build directory contents:"
             find build -type f | head -20
             exit 1
           fi
