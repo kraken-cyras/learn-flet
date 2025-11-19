@@ -27,7 +27,7 @@ jobs:
     - name: Install Python Dependencies
       run: |
         python3 -m pip install --upgrade pip wheel setuptools
-        pip install --upgrade flet buildozer cython
+        pip install --upgrade flet buildozer cython pyinstaller
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
     - name: Cache Android SDK
