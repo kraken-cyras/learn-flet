@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <defs>
+    <style>
+      @keyframes drawStroke {
+        from { stroke-dashoffset: 1000; }
+        to { stroke-dashoffset: 0; }
+      }
+      
+      @keyframes fillColor {
+        0% { fill: none; }
+        100% { fill: #10B981; }
+      }
+      
+      @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.8; transform: scale(1.05); }
+      }
+      
+      .logo-path {
+        stroke: #10B981;
+        stroke-width: 2;
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        animation: drawStroke 3s ease-out forwards;
+      }
+      
+      .logo-path:nth-child(1) { animation-delay: 0s; }
+      .logo-path:nth-child(2) { animation-delay: 0.3s; }
+      .logo-path:nth-child(3) { animation-delay: 0.6s; }
+      .logo-path:nth-child(4) { animation-delay: 0.9s; }
+      
+      .logo-group {
+        animation: pulse 0.8s ease-in-out 3.5s 3;
+      }
+    </style>
+  </defs>
+  
+  <g class="logo-group" transform="translate(100, 100)">
+    <!-- Main outline paths -->
+    <circle cx="0" cy="0" r="45" class="logo-path" stroke-dasharray="283" style="animation-delay: 0s;"/>
+    
+    <!-- Inner design elements -->
+    <path d="M-20,-20 Q-10,-30 0,-25 Q10,-30 20,-20" class="logo-path" stroke-dasharray="100" style="animation-delay: 0.3s;"/>
+    <path d="M-15,0 L15,0" class="logo-path" stroke-dasharray="30" style="animation-delay: 0.6s;"/>
+    <path d="M0,-10 Q-15,5 0,20 Q15,5 0,-10" class="logo-path" stroke-dasharray="80" style="animation-delay: 0.9s;"/>
+    
+    <!-- Decorative elements -->
+    <circle cx="-20" cy="-20" r="3" fill="#10B981" opacity="0" style="animation: fillColor 0.5s ease-out 3s forwards;"/>
+    <circle cx="20" cy="-20" r="3" fill="#10B981" opacity="0" style="animation: fillColor 0.5s ease-out 3.2s forwards;"/>
+    <circle cx="0" cy="25" r="3" fill="#10B981" opacity="0" style="animation: fillColor 0.5s ease-out 3.4s forwards;"/>
+  </g>
+</svg>

@@ -1,0 +1,14 @@
+# Build and packaging dependencies
+buildozer>=1.5.0
+cython>=0.29.30
+flet>=0.20.0
+
+# Android build tools (handled by buildozer/JDK)
+# android-ndk
+# android-sdk
+
+# Development dependencies (optional)
+pytest>=7.0.0
+pytest-cov>=4.0.0
+black>=22.0.0
+flake8>=4.0.0
