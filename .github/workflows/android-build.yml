@@ -1,10 +1,12 @@
-name: Build Android APK
+name: Build Flet Android APK
 
 on:
   push:
-    branches: ["main", "master"]     # Trigger on push to main/master
-    tags: ["*"]         # Trigger on push of any tag
-  workflow_dispatch:     # Allow manual trigger
+    branches: ["main", "master"]   # Trigger on push to main/master
+    tags: ["*"]                     # Trigger on push of any tag
+  workflow_dispatch:               # Allow manual trigger
+  release:
+    types: [published]             # Trigger on published release
 
 jobs:
   build-android:
@@ -17,14 +19,14 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # Fetch full history for caching
+          fetch-depth: 0   # Full history for caching & Buildozer
 
       # -----------------------
-      # DEBUG INFO
+      # SHOW DEBUG INFO
       # -----------------------
       - name: Show Git Info
         run: |
-          echo "Branch: $GITHUB_REF"
+          echo "Branch/Tag: $GITHUB_REF"
           git log -1
           pwd
           ls -la
@@ -42,16 +44,17 @@ jobs:
             libffi-dev libssl-dev ccache
 
       # -----------------------
-      # Install Python Dependencies
+      # INSTALL PYTHON DEPENDENCIES
       # -----------------------
       - name: Install Python Dependencies
         run: |
           python3 -m pip install --upgrade pip setuptools wheel
-          pip install flet buildozer cython
+          pip install --upgrade flet
+          pip install buildozer cython
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
       # -----------------------
-      # ENABLE CACHING
+      # ENABLE BUILDOZER CACHING
       # -----------------------
       - name: Cache Buildozer
         uses: actions/cache@v3
@@ -61,7 +64,7 @@ jobs:
           key: buildozer-${{ hashFiles('buildozer.spec') }}
 
       # -----------------------
-      # BUILD APK WITH FLET (Recommended for Flet apps)
+      # BUILD APK USING FLET
       # -----------------------
       - name: Build APK using Flet
         run: |
@@ -78,8 +81,7 @@ jobs:
       # -----------------------
       - name: Verify APK
         run: |
-          echo "🔍 Checking for built APK files..."
-          find build -name "*.apk" -type f
+          echo "🔍 Checking for APK files..."
           APK_FILE=$(find build/apk -name "*.apk" -type f | head -1)
           if [ -z "$APK_FILE" ]; then
             echo "❌ No APK file found!"
@@ -102,7 +104,7 @@ jobs:
           retention-days: 14
 
       # -----------------------
-      # CREATE RELEASE (optional)
+      # CREATE GITHUB RELEASE (optional)
       # -----------------------
       - name: Create GitHub Release
         if: github.event_name == 'release'
@@ -111,7 +113,7 @@ jobs:
           files: build/apk/*.apk
           body: |
             CLC Kenya Android App
-            
+
             **Build Information:**
             - Version: 1.0.0
             - Build: ${{ github.run_number }}
