@@ -61,7 +61,8 @@ jobs:
 
     - name: Build APK
       run: |
-        flet pack android main.py --verbose
+        flet build apk --verbose
+
 
     - name: Verify APK
       run: |
